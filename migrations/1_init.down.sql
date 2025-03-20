@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS song_detail;
+DROP TABLE IF EXISTS songs;

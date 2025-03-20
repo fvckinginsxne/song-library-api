@@ -2,14 +2,15 @@ package config
 
 import (
 	"flag"
-	"github.com/ilyakaznacheev/cleanenv"
 	"os"
 	"time"
+
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
 	HTTPServer HTTPServer
-	DataBase   DataBase
+	DB         DB
 }
 
 type HTTPServer struct {
@@ -18,11 +19,12 @@ type HTTPServer struct {
 	IdleTimeout time.Duration `env:"SERVER_IDLE_TIMEOUT" env-default:"60s"`
 }
 
-type DataBase struct {
+type DB struct {
 	Host     string `env:"DB_HOST" env-required:"true"`
 	Port     string `env:"DB_PORT" env-required:"true"`
 	Username string `env:"DB_USERNAME" env-required:"true"`
 	Password string `env:"DB_PASSWORD" env-required:"true"`
+	Name     string `env:"DB_NAME" env-required:"true"`
 }
 
 // MustLoad Load config file and panic if error occurs
@@ -49,7 +51,9 @@ func fetchConfigPath() string {
 	var res string
 
 	flag.StringVar(&res, "config", "", "path to config file")
-	flag.Parse()
+	if err := flag.CommandLine.Parse(os.Args[1:2]); err != nil {
+		panic(err)
+	}
 
 	if res == "" {
 		res = os.Getenv("CONFIG_PATH")
