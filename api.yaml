@@ -1,0 +1,185 @@
+openapi: 3.0.3
+info:
+  title: Music info
+  version: 0.0.1
+paths:
+  /songs:
+    get:
+      summary: Получение данных библиотеки с фильтрацией по всем полям и пагинацией
+      parameters:
+        - name: artist
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: title
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: releaseDate
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SongDetail'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
+    post:
+      summary: Добавление новой песни
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                artist:
+                  type: string
+                  example: "Muse"
+                title:
+                  type: string
+                  example: "Supermassive Black Hole"
+              required:
+                - artist
+                - title
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SongDetail'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
+  /songs/{id}/lyrics:
+    get:
+      summary: Получение текста песни с пагинацией по куплетам
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '400':
+          description: Bad request
+        '404':
+          description: Song not found
+        '500':
+          description: Internal server error
+
+  /songs/{id}:
+    delete:
+      summary: Удаление песни
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Song not found
+        '500':
+          description: Internal server error
+
+    put:
+      summary: Изменение данных песни
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SongDetail'
+      responses:
+        '200':
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SongDetail'
+        '400':
+          description: Bad request
+        '404':
+          description: Song not found
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    SongDetail:
+      required:
+        - releaseDate
+        - text
+      type: object
+      properties:
+        releaseDate:
+          type: string
+          example: 16.07.2006
+        text:
+          type: string
+          example: |
+            Ooh baby, don't you know I suffer?
+            Ooh baby, can you hear me moan?
+            You caught me under false pretenses
+            How long before you let me go?
+
+            Ooh
+            You set my soul alight
+            Ooh
+            You set my soul alight

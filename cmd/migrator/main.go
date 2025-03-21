@@ -24,7 +24,7 @@ func main() {
 
 	flag.StringVar(&migrationsPath, "migrations-path", "", "Path to the migrations folder")
 	flag.StringVar(&action, "action", "", "Action to perform: up (apply migrations) or down (rollback migrations)")
-	flag.IntVar(&forceVersion, "force-version", -1, "Force version to rollback")
+	flag.IntVar(&forceVersion, "force-version", 0, "Force version to rollback")
 
 	if err := flag.CommandLine.Parse(os.Args[2:]); err != nil {
 		panic(err)
@@ -50,6 +50,14 @@ func main() {
 	}
 	defer func() { _, _ = m.Close() }()
 
+	if forceVersion > 0 {
+		if err := m.Force(forceVersion); err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("Forced database to version %d\n", forceVersion)
+	}
+
 	switch action {
 	case "up":
 		if err := applyMigrations(m); err != nil {
@@ -60,21 +68,6 @@ func main() {
 			panic(err)
 		}
 	}
-
-	if forceVersion >= 0 {
-		if err := m.Force(forceVersion); err != nil {
-			panic(err)
-		}
-
-		fmt.Printf("Forced database to version %d\n", forceVersion)
-	}
-
-	version, dirty, err := m.Version()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("migrations applied successfully: %d, Dirty: %t\n", version, dirty)
 }
 
 func applyMigrations(m *migrate.Migrate) error {
@@ -87,6 +80,8 @@ func applyMigrations(m *migrate.Migrate) error {
 
 		return fmt.Errorf("failed to apply migrations: %w", err)
 	}
+
+	fmt.Println("Migrations applied successfully")
 
 	return nil
 }
@@ -101,6 +96,8 @@ func rollbackMigrations(m *migrate.Migrate) error {
 
 		return fmt.Errorf("failed to rollback migrations: %w", err)
 	}
+
+	fmt.Println("Migrations rolled back successfully")
 
 	return nil
 }
