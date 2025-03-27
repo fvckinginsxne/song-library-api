@@ -9,8 +9,10 @@ import (
 )
 
 type Config struct {
+	Env        string `env:"ENV" env-default:"local"`
 	HTTPServer HTTPServer
 	DB         DB
+	GeniusAPI  GeniusAPI
 }
 
 type HTTPServer struct {
@@ -27,7 +29,12 @@ type DB struct {
 	Name     string `env:"DB_NAME" env-required:"true"`
 }
 
-// MustLoad Load config file and panic if error occurs
+type GeniusAPI struct {
+	AccessToken string `env:"GENIUS_ACCESS_TOKEN" env-required:"true"`
+	BaseURL     string `env:"GENIUS_BASE_URL" env-required:"true"`
+}
+
+// MustLoad Load config file and panic if errors occurs
 func MustLoad() *Config {
 	path := fetchConfigPath()
 	if path == "" {

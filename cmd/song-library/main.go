@@ -6,16 +6,20 @@ import (
 	"os"
 
 	"song-library/internal/config"
-	"song-library/internal/lib/logger/sl"
+	"song-library/internal/lib/logger/slogpretty"
+	"song-library/internal/service/genius"
 	"song-library/internal/storage/postgres"
+)
+
+const (
+	EnvLocal = "local"
+	EnvProd  = "prod"
 )
 
 func main() {
 	cfg := config.MustLoad()
 
-	log := slog.New(
-		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-	)
+	log := setupLogger(cfg.Env)
 
 	log.Info("starting service")
 
@@ -24,14 +28,47 @@ func main() {
 
 	storage, err := postgres.New(dbURL)
 	if err != nil {
-		log.Error("failed to connect to database", sl.Err(err))
+		panic(err.Error())
 	}
 
-	_ = storage
+	client := genius.New(log,
+		cfg.GeniusAPI.BaseURL,
+		cfg.GeniusAPI.AccessToken,
+		storage,
+	)
 
-	// TODO: init service layer
+	_ = client
 
 	// TODO: init router: chi, render
 
 	// TODO: run server
+
+	log.Info("service stopped")
+}
+
+func setupLogger(env string) *slog.Logger {
+	var log *slog.Logger
+
+	switch env {
+	case EnvLocal:
+		log = setupPrettyLogger()
+	case EnvProd:
+		log = slog.New(
+			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
+		)
+	}
+
+	return log
+}
+
+func setupPrettyLogger() *slog.Logger {
+	opts := slogpretty.PrettyHandlerOptions{
+		SlogOpts: &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		},
+	}
+
+	handler := opts.NewPrettyHandler(os.Stdout)
+
+	return slog.New(handler)
 }

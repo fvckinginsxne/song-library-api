@@ -1,10 +1,13 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
 	_ "github.com/lib/pq"
+
+	"song-library/internal/domain/models"
 )
 
 type Storage struct {
@@ -20,4 +23,9 @@ func New(dbURL string) (*Storage, error) {
 	}
 
 	return &Storage{db: db}, nil
+}
+
+func (s *Storage) Save(ctx context.Context, trackInfo *models.TrackInfo) error {
+
+	return nil
 }
