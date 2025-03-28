@@ -30,8 +30,7 @@ type Client struct {
 }
 
 var (
-	ErrTrackNotFound  = errors.New("track not found")
-	ErrLyricsNotFound = errors.New("lyrics not found")
+	ErrTrackNotFound = errors.New("track not found")
 )
 
 func New(log *slog.Logger,
@@ -73,7 +72,7 @@ type SearchResponse struct {
 func (c *Client) TrackInfo(ctx context.Context,
 	artist string,
 	title string,
-) error {
+) (*models.TrackInfo, error) {
 	const op = "service.genius.TrackInfo"
 
 	log := c.log.With(slog.String("op", op),
@@ -85,34 +84,30 @@ func (c *Client) TrackInfo(ctx context.Context,
 
 	req, err := c.buildGeniusSearchRequest(artist, title)
 	if err != nil {
-		c.log.Error("Failed to build search request", sl.Err(err))
-
-		return fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	log.Debug("Request URL", slog.String("url", req.URL.String()))
 
 	res, err := c.fetchTrackData(req)
 	if err != nil {
-		c.log.Error("Failed to fetch track data", sl.Err(err))
-
-		return fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
+
+	log.Debug("Song url", slog.String("url", res.Response.Hits[0].Result.URL))
 
 	trackInfo, err := c.extractTrackInfo(res)
 	if err != nil {
-		c.log.Error("Failed to extract track info", sl.Err(err))
-
-		return fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
+
+	log.Debug("track info fetched", slog.Any("track", trackInfo))
 
 	if err := c.trackInfoSaver.Save(ctx, trackInfo); err != nil {
-		c.log.Error("Failed to save track info", sl.Err(err))
-
-		return fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return nil
+	return trackInfo, nil
 }
 
 func (c *Client) buildGeniusSearchRequest(artist, title string) (*http.Request, error) {
@@ -195,7 +190,7 @@ func (c *Client) parseLyrics(songURL string) (string, error) {
 	})
 
 	if lyrics == "" {
-		return "", ErrLyricsNotFound
+		return "", fmt.Errorf("failed to find lyrics for song %s", songURL)
 	}
 
 	return lyrics, nil
