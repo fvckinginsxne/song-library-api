@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"song-library/internal/config"
+	"song-library/internal/http-server/handlers/song/info"
 	"song-library/internal/http-server/handlers/song/save"
 	"song-library/internal/lib/logger/sl"
 	"song-library/internal/lib/logger/slogpretty"
@@ -22,8 +23,8 @@ import (
 )
 
 const (
-	EnvLocal = "local"
-	EnvProd  = "prod"
+	envLocal = "local"
+	envProd  = "prod"
 )
 
 func main() {
@@ -34,8 +35,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
-		cfg.DB.Username, cfg.DB.Password, cfg.DB.Host, cfg.DB.Name)
+	dbURL := connectURL(cfg)
 
 	storage, err := postgres.New(dbURL)
 	if err != nil {
@@ -43,8 +43,7 @@ func main() {
 	}
 
 	client := genius.New(log,
-		cfg.GeniusAPI.BaseURL,
-		cfg.GeniusAPI.AccessToken,
+		cfg.GeniusAPI.Token,
 		storage,
 	)
 
@@ -53,7 +52,10 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/songs", save.New(ctx, log, client))
+	router.Route("/songs", func(r chi.Router) {
+		r.Post("/", save.New(ctx, log, client))
+		r.Get("/", info.New(ctx, log, storage, storage))
+	})
 
 	log.Info("starting server", slog.String("address", cfg.HTTPServer.Address))
 
@@ -74,10 +76,7 @@ func main() {
 		}
 	}()
 
-	log.Info("server is running")
-
 	<-stop
-	log.Info("shutting down server")
 	cancel()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -87,24 +86,20 @@ func main() {
 		log.Error("failed to shutdown server", sl.Err(err))
 	}
 
-	log.Info("server stopped gracefully")
-
-	log.Info("shutting down storage")
-
 	if err := storage.Close(shutdownCtx); err != nil {
 		log.Error("failed to close storage", sl.Err(err))
 	}
 
-	log.Info("storage stopped gracefully")
+	log.Info("service stopped gracefully")
 }
 
 func setupLogger(env string) *slog.Logger {
 	var log *slog.Logger
 
 	switch env {
-	case EnvLocal:
+	case envLocal:
 		log = setupPrettyLogger()
-	case EnvProd:
+	case envProd:
 		log = slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
 		)
@@ -123,4 +118,9 @@ func setupPrettyLogger() *slog.Logger {
 	handler := opts.NewPrettyHandler(os.Stdout)
 
 	return slog.New(handler)
+}
+
+func connectURL(cfg *config.Config) string {
+	return fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
+		cfg.DB.Username, cfg.DB.Password, cfg.DB.Host, cfg.DB.Name)
 }

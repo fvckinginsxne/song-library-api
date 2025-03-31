@@ -24,7 +24,6 @@ type TrackInfoSaver interface {
 type Client struct {
 	log            *slog.Logger
 	client         *http.Client
-	baseURL        string
 	accessToken    string
 	trackInfoSaver TrackInfoSaver
 }
@@ -33,14 +32,16 @@ var (
 	ErrTrackNotFound = errors.New("track not found")
 )
 
+const (
+	baseURL = "https://api.genius.com/search"
+)
+
 func New(log *slog.Logger,
-	baseURL string,
 	accessToken string,
 	trackInfoSaver TrackInfoSaver,
 ) *Client {
 	return &Client{
 		log:            log,
-		baseURL:        baseURL,
 		accessToken:    accessToken,
 		client:         &http.Client{},
 		trackInfoSaver: trackInfoSaver,
@@ -111,7 +112,7 @@ func (c *Client) TrackInfo(ctx context.Context,
 }
 
 func (c *Client) buildGeniusSearchRequest(artist, title string) (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodGet, c.baseURL, nil)
+	req, err := http.NewRequest(http.MethodGet, baseURL, nil)
 	if err != nil {
 		return nil, err
 	}
