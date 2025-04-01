@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"song-library/internal/service/api/genius"
 	"syscall"
 	"time"
 
@@ -14,11 +15,11 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"song-library/internal/config"
+	del "song-library/internal/http-server/handlers/song/delete"
 	"song-library/internal/http-server/handlers/song/info"
 	"song-library/internal/http-server/handlers/song/save"
 	"song-library/internal/lib/logger/sl"
 	"song-library/internal/lib/logger/slogpretty"
-	"song-library/internal/service/genius"
 	"song-library/internal/storage/postgres"
 )
 
@@ -55,6 +56,7 @@ func main() {
 	router.Route("/songs", func(r chi.Router) {
 		r.Post("/", save.New(ctx, log, client))
 		r.Get("/", info.New(ctx, log, storage, storage))
+		r.Delete("/{uuid}", del.New(ctx, log, storage))
 	})
 
 	log.Info("starting server", slog.String("address", cfg.HTTPServer.Address))

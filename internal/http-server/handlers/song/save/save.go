@@ -12,7 +12,7 @@ import (
 	"song-library/internal/domain/models"
 	resp "song-library/internal/lib/api/response"
 	"song-library/internal/lib/logger/sl"
-	"song-library/internal/service/genius"
+	"song-library/internal/service/api"
 )
 
 type Request struct {
@@ -59,7 +59,7 @@ func New(ctx context.Context, log *slog.Logger, trackInfoFetcher TrackInfoFetche
 
 		trackInfo, err := trackInfoFetcher.TrackInfo(ctx, req.Artist, req.Title)
 		if err != nil {
-			if errors.Is(err, genius.ErrTrackNotFound) {
+			if errors.Is(err, api.ErrTrackNotFound) {
 				logger.Error("track not found", sl.Err(err))
 
 				w.WriteHeader(http.StatusNotFound)

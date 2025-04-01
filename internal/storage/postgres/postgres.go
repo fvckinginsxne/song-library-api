@@ -27,7 +27,7 @@ func New(dbURL string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) Save(ctx context.Context, trackInfo *models.TrackInfo) error {
+func (s *Storage) SaveTrack(ctx context.Context, trackInfo *models.TrackInfo) error {
 	const op = "storage.postgres.Save"
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -85,7 +85,7 @@ func (s *Storage) TrackInfo(ctx context.Context, artist, title string) (*models.
 }
 
 func (s *Storage) TracksByArtist(ctx context.Context, artist string) ([]*models.TrackInfo, error) {
-	const op = "storage.postgres.ArtistTracks"
+	const op = "storage.postgres.TracksByArtist"
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -94,7 +94,7 @@ func (s *Storage) TracksByArtist(ctx context.Context, artist string) ([]*models.
 	defer tx.Rollback()
 
 	rows, err := tx.QueryContext(ctx, `
-		SELECT title, release_date, lyrics 
+		SELECT artist, title, release_date, lyrics 
 		FROM songs WHERE artist ILIKE $1
 		ORDER BY release_date DESC 
 	`, artist)
@@ -107,7 +107,7 @@ func (s *Storage) TracksByArtist(ctx context.Context, artist string) ([]*models.
 	for rows.Next() {
 		var title, releaseDate, lyrics string
 
-		if err := rows.Scan(&title, &releaseDate, &lyrics); err != nil {
+		if err := rows.Scan(&artist, &title, &releaseDate, &lyrics); err != nil {
 			return nil, fmt.Errorf("%s: %w", op, err)
 		}
 
@@ -132,6 +132,32 @@ func (s *Storage) TracksByArtist(ctx context.Context, artist string) ([]*models.
 	}
 
 	return tracks, nil
+}
+
+func (s *Storage) DeleteTrack(ctx context.Context, uuid string) error {
+	const op = "storage.postgres.DeleteTrack"
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(ctx, `DELETE FROM songs WHERE uuid = $1`, uuid)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("%s: %w", op, storage.ErrInvalidUUID)
+	}
+
+	return tx.Commit()
 }
 
 func (s *Storage) Close(ctx context.Context) error {

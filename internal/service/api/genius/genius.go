@@ -3,22 +3,23 @@ package genius
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 
 	"song-library/internal/domain/models"
 	"song-library/internal/lib/logger/sl"
+	"song-library/internal/service/api"
 )
 
 type TrackInfoSaver interface {
-	Save(ctx context.Context, info *models.TrackInfo) error
+	SaveTrack(ctx context.Context, info *models.TrackInfo) error
 }
 
 type Client struct {
@@ -27,10 +28,6 @@ type Client struct {
 	accessToken    string
 	trackInfoSaver TrackInfoSaver
 }
-
-var (
-	ErrTrackNotFound = errors.New("track not found")
-)
 
 const (
 	baseURL = "https://api.genius.com/search"
@@ -41,9 +38,11 @@ func New(log *slog.Logger,
 	trackInfoSaver TrackInfoSaver,
 ) *Client {
 	return &Client{
-		log:            log,
-		accessToken:    accessToken,
-		client:         &http.Client{},
+		log:         log,
+		accessToken: accessToken,
+		client: &http.Client{
+			Timeout: 15 * time.Second,
+		},
 		trackInfoSaver: trackInfoSaver,
 	}
 }
@@ -74,7 +73,7 @@ func (c *Client) TrackInfo(ctx context.Context,
 	artist string,
 	title string,
 ) (*models.TrackInfo, error) {
-	const op = "service.genius.TrackInfo"
+	const op = "service.api.genius.TrackInfo"
 
 	log := c.log.With(slog.String("op", op),
 		slog.String("artist", artist),
@@ -104,7 +103,7 @@ func (c *Client) TrackInfo(ctx context.Context,
 
 	log.Debug("track info fetched", slog.Any("track", trackInfo))
 
-	if err := c.trackInfoSaver.Save(ctx, trackInfo); err != nil {
+	if err := c.trackInfoSaver.SaveTrack(ctx, trackInfo); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -143,7 +142,7 @@ func (c *Client) fetchTrackData(req *http.Request) (*SearchResponse, error) {
 	}
 
 	if len(res.Response.Hits) == 0 {
-		return nil, ErrTrackNotFound
+		return nil, api.ErrTrackNotFound
 	}
 
 	return &res, nil
