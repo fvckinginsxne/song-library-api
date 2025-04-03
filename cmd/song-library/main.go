@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"song-library/internal/service/api/genius"
 	"syscall"
 	"time"
 
@@ -20,6 +19,8 @@ import (
 	"song-library/internal/http-server/handlers/song/save"
 	"song-library/internal/lib/logger/sl"
 	"song-library/internal/lib/logger/slogpretty"
+	"song-library/internal/service/api/lyricsovh"
+	"song-library/internal/service/api/yandex"
 	"song-library/internal/storage/postgres"
 )
 
@@ -36,17 +37,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	dbURL := connectURL(cfg)
-
-	storage, err := postgres.New(dbURL)
+	storage, err := postgres.New(connectURL(cfg))
 	if err != nil {
 		panic(err)
 	}
 
-	client := genius.New(log,
-		cfg.GeniusAPI.Token,
-		storage,
-	)
+	lyricsClient := lyricsovh.New(log)
+	translateClient := yandex.New(log, cfg.YandexTranslatorAPI.Key)
 
 	router := chi.NewRouter()
 
@@ -54,7 +51,7 @@ func main() {
 	router.Use(middleware.URLFormat)
 
 	router.Route("/songs", func(r chi.Router) {
-		r.Post("/", save.New(ctx, log, client))
+		r.Post("/", save.New(ctx, log, lyricsClient, translateClient, storage))
 		r.Get("/", info.New(ctx, log, storage, storage))
 		r.Delete("/{uuid}", del.New(ctx, log, storage))
 	})

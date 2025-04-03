@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	Env        string     `yaml:"env" env-default:"local"`
-	HTTPServer HTTPServer `yaml:"http_server"`
-	DB         DB         `yaml:"db"`
-	GeniusAPI  GeniusAPI  `yaml:"genius_api"`
+	Env                 string              `yaml:"env" env-default:"local"`
+	HTTPServer          HTTPServer          `yaml:"http_server"`
+	DB                  DB                  `yaml:"db"`
+	DeepSeekAPI         DeepSeekAPI         `yaml:"deepseek_api"`
+	YandexTranslatorAPI YandexTranslatorAPI `yaml:"yandex_translator_api"`
 }
 
 type HTTPServer struct {
@@ -29,8 +30,12 @@ type DB struct {
 	Name     string `yaml:"name" env-required:"true"`
 }
 
-type GeniusAPI struct {
-	Token string `yaml:"token" env-required:"true"`
+type DeepSeekAPI struct {
+	Key string `yaml:"key" env-required:"true"`
+}
+
+type YandexTranslatorAPI struct {
+	Key string `yaml:"key" env-required:"true"`
 }
 
 // MustLoad Load config file and panic if errors occurs

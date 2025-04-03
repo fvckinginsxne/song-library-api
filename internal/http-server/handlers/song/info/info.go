@@ -14,17 +14,17 @@ import (
 	"song-library/internal/storage"
 )
 
-type TrackInfoProvider interface {
-	TrackInfo(ctx context.Context, artist, title string) (*models.TrackInfo, error)
+type TrackProvider interface {
+	Track(ctx context.Context, artist, title string) (*models.Track, error)
 }
 
 type ArtistTracksProvider interface {
-	TracksByArtist(ctx context.Context, artist string) ([]*models.TrackInfo, error)
+	TracksByArtist(ctx context.Context, artist string) ([]*models.Track, error)
 }
 
 func New(ctx context.Context,
 	log *slog.Logger,
-	trackInfoProvider TrackInfoProvider,
+	trackProvider TrackProvider,
 	artistTracksProvider ArtistTracksProvider,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +32,7 @@ func New(ctx context.Context,
 
 		log = log.With(slog.String("op", op))
 
-		log.Info("getting track info")
+		log.Info("fetching track info")
 
 		query := r.URL.Query()
 
@@ -76,7 +76,7 @@ func New(ctx context.Context,
 			return
 		}
 
-		trackInfo, err := trackInfoProvider.TrackInfo(ctx, artist, title)
+		track, err := trackProvider.Track(ctx, artist, title)
 		if err != nil {
 			if errors.Is(err, storage.ErrTrackNotFound) {
 				log.Error("track not found")
@@ -95,10 +95,10 @@ func New(ctx context.Context,
 			return
 		}
 
-		log.Info("track info got successfully", slog.Any("trackInfo", trackInfo))
+		log.Info("track info got successfully", slog.Any("trackInfo", track))
 
 		w.WriteHeader(http.StatusOK)
 
-		render.JSON(w, r, trackInfo)
+		render.JSON(w, r, track)
 	}
 }

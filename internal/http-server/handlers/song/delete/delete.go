@@ -60,6 +60,6 @@ func New(ctx context.Context,
 
 		log.Info("track deleted successfully")
 
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusOK)
 	}
 }

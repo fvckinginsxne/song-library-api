@@ -20,25 +20,37 @@ type Request struct {
 	Title  string `json:"title" validate:"required"`
 }
 
-//go:generate go run github.com/vektra/mockery/v2@v2.53.3 --name=TrackInfoFetcher
-type TrackInfoFetcher interface {
-	TrackInfo(ctx context.Context, artist, title string) (*models.TrackInfo, error)
+type LyricsFetcher interface {
+	Lyrics(ctx context.Context, artist, title string) ([]string, error)
 }
 
-func New(ctx context.Context, log *slog.Logger, trackInfoFetcher TrackInfoFetcher) http.HandlerFunc {
+type LyricsTranslator interface {
+	TranslateLyrics(ctx context.Context, lyrics []string) ([]string, error)
+}
+
+type TrackSaver interface {
+	SaveTrack(ctx context.Context, info *models.Track) error
+}
+
+func New(ctx context.Context,
+	log *slog.Logger,
+	lyricsFetcher LyricsFetcher,
+	lyricsTranslator LyricsTranslator,
+	trackSaver TrackSaver,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.song.save.New"
 
-		logger := log.With(
+		log := log.With(
 			slog.String("op", op),
 		)
 
-		logger.Info("saving song")
+		log.Info("saving lyrics")
 
 		var req Request
 
 		if err := render.DecodeJSON(r.Body, &req); err != nil {
-			logger.Error("failed to decode request body", sl.Err(err))
+			log.Error("failed to decode request body", sl.Err(err))
 
 			w.WriteHeader(http.StatusBadRequest)
 
@@ -46,10 +58,10 @@ func New(ctx context.Context, log *slog.Logger, trackInfoFetcher TrackInfoFetche
 			return
 		}
 
-		logger.Debug("request body decoded", slog.Any("request", req))
+		log.Debug("request body decoded", slog.Any("request", req))
 
 		if err := validator.New().Struct(req); err != nil {
-			logger.Error("invalid request", sl.Err(err))
+			log.Error("invalid request", sl.Err(err))
 
 			w.WriteHeader(http.StatusBadRequest)
 
@@ -57,18 +69,18 @@ func New(ctx context.Context, log *slog.Logger, trackInfoFetcher TrackInfoFetche
 			return
 		}
 
-		trackInfo, err := trackInfoFetcher.TrackInfo(ctx, req.Artist, req.Title)
+		lyrics, err := lyricsFetcher.Lyrics(ctx, req.Artist, req.Title)
 		if err != nil {
 			if errors.Is(err, api.ErrTrackNotFound) {
-				logger.Error("track not found", sl.Err(err))
+				log.Error("lyrics not found", sl.Err(err))
 
 				w.WriteHeader(http.StatusNotFound)
 
-				render.JSON(w, r, resp.Error("track not found"))
+				render.JSON(w, r, resp.Error("lyrics not found"))
 				return
 			}
 
-			logger.Error("failed to fetch track info", sl.Err(err))
+			log.Error("failed to fetch lyrics", sl.Err(err))
 
 			w.WriteHeader(http.StatusInternalServerError)
 
@@ -76,10 +88,47 @@ func New(ctx context.Context, log *slog.Logger, trackInfoFetcher TrackInfoFetche
 			return
 		}
 
-		logger.Info("song saved successfully")
+		log.Debug("lyrics fetched", slog.Any("lyrics", lyrics))
+
+		translation, err := lyricsTranslator.TranslateLyrics(ctx, lyrics)
+		if err != nil {
+
+			log.Error("failed translate lyrics", sl.Err(err))
+
+			if errors.Is(err, api.ErrFailedTranslateLyrics) {
+
+				w.WriteHeader(http.StatusBadRequest)
+
+				render.JSON(w, r, resp.Error("failed translate lyrics"))
+				return
+			}
+
+			w.WriteHeader(http.StatusInternalServerError)
+
+			render.JSON(w, r, resp.Error("internal error"))
+			return
+		}
+
+		track := &models.Track{
+			Artist:      req.Artist,
+			Title:       req.Title,
+			Lyrics:      lyrics,
+			Translation: translation,
+		}
+
+		if err := trackSaver.SaveTrack(ctx, track); err != nil {
+			log.Error("failed to save track", sl.Err(err))
+
+			w.WriteHeader(http.StatusInternalServerError)
+
+			render.JSON(w, r, resp.Error("internal error"))
+			return
+		}
+
+		log.Info("lyrics saved successfully")
 
 		w.WriteHeader(http.StatusCreated)
 
-		render.JSON(w, r, trackInfo)
+		render.JSON(w, r, track)
 	}
 }

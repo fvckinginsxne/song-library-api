@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 
 	"song-library/internal/domain/models"
 	"song-library/internal/storage"
@@ -27,7 +27,7 @@ func New(dbURL string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) SaveTrack(ctx context.Context, trackInfo *models.TrackInfo) error {
+func (s *Storage) SaveTrack(ctx context.Context, track *models.Track) error {
 	const op = "storage.postgres.Save"
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -37,9 +37,9 @@ func (s *Storage) SaveTrack(ctx context.Context, trackInfo *models.TrackInfo) er
 	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO songs (artist, title, release_date, lyrics)
+		INSERT INTO songs (artist, title, lyrics, translation)
 		VALUES ($1, $2, $3, $4)
-	`, trackInfo.Artist, trackInfo.Title, trackInfo.ReleaseDate, trackInfo.Lyrics)
+	`, track.Artist, track.Title, pq.Array(track.Lyrics), pq.Array(track.Translation))
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -47,7 +47,7 @@ func (s *Storage) SaveTrack(ctx context.Context, trackInfo *models.TrackInfo) er
 	return tx.Commit()
 }
 
-func (s *Storage) TrackInfo(ctx context.Context, artist, title string) (*models.TrackInfo, error) {
+func (s *Storage) Track(ctx context.Context, artist, title string) (*models.Track, error) {
 	const op = "storage.postgres.TrackInfo"
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -57,13 +57,13 @@ func (s *Storage) TrackInfo(ctx context.Context, artist, title string) (*models.
 	defer tx.Rollback()
 
 	row := tx.QueryRowContext(ctx, `
-		SELECT artist, title, release_date, lyrics FROM songs 
+		SELECT artist, title, lyrics, translation FROM songs 
 		WHERE artist ILIKE $1 AND title ILIKE $2
 	`, artist, title)
 
-	var releaseDate, lyrics string
+	var lyrics, translation []string
 
-	err = row.Scan(&artist, &title, &releaseDate, &lyrics)
+	err = row.Scan(&artist, &title, pq.Array(&lyrics), pq.Array(&translation))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, storage.ErrTrackNotFound
@@ -76,15 +76,15 @@ func (s *Storage) TrackInfo(ctx context.Context, artist, title string) (*models.
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return &models.TrackInfo{
+	return &models.Track{
 		Artist:      artist,
 		Title:       title,
-		ReleaseDate: releaseDate,
 		Lyrics:      lyrics,
+		Translation: translation,
 	}, nil
 }
 
-func (s *Storage) TracksByArtist(ctx context.Context, artist string) ([]*models.TrackInfo, error) {
+func (s *Storage) TracksByArtist(ctx context.Context, artist string) ([]*models.Track, error) {
 	const op = "storage.postgres.TracksByArtist"
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -94,28 +94,31 @@ func (s *Storage) TracksByArtist(ctx context.Context, artist string) ([]*models.
 	defer tx.Rollback()
 
 	rows, err := tx.QueryContext(ctx, `
-		SELECT artist, title, release_date, lyrics 
+		SELECT artist, title, lyrics, translation
 		FROM songs WHERE artist ILIKE $1
-		ORDER BY release_date DESC 
 	`, artist)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	var tracks []*models.TrackInfo
+	var tracks []*models.Track
 
+	var (
+		title       string
+		lyrics      []string
+		translation []string
+	)
 	for rows.Next() {
-		var title, releaseDate, lyrics string
-
-		if err := rows.Scan(&artist, &title, &releaseDate, &lyrics); err != nil {
+		err := rows.Scan(&artist, &title, pq.Array(&lyrics), pq.Array(&translation))
+		if err != nil {
 			return nil, fmt.Errorf("%s: %w", op, err)
 		}
 
-		tracks = append(tracks, &models.TrackInfo{
+		tracks = append(tracks, &models.Track{
 			Artist:      artist,
 			Title:       title,
-			ReleaseDate: releaseDate,
 			Lyrics:      lyrics,
+			Translation: translation,
 		})
 	}
 
