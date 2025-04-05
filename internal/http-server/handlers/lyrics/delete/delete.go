@@ -9,9 +9,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 
-	resp "song-library/internal/lib/api/response"
-	"song-library/internal/lib/logger/sl"
-	"song-library/internal/storage"
+	resp "lyrics-library/internal/lib/api/response"
+	"lyrics-library/internal/lib/logger/sl"
+	"lyrics-library/internal/storage"
 )
 
 type TrackDeleter interface {

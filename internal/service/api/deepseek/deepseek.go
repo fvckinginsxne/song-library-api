@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	"song-library/internal/service/api"
+	"lyrics-library/internal/service/api"
 )
 
 type ChatRequest struct {

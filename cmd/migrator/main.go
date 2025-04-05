@@ -5,12 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
-	"song-library/internal/config"
-
+	
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+
+	"lyrics-library/internal/config"
 )
 
 func main() {

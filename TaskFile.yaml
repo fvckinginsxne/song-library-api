@@ -4,7 +4,7 @@ tasks:
   run:
     desc: "Run service"
     cmds:
-      - go run ./cmd/song-library --config=./config/local.yaml
+      - go run ./cmd/lyrics-library --config=./config/local.yaml
 
   migrate:
     desc: "Apply or rollback migrations base on the action flag"

@@ -9,10 +9,10 @@ import (
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator"
 
-	"song-library/internal/domain/models"
-	resp "song-library/internal/lib/api/response"
-	"song-library/internal/lib/logger/sl"
-	"song-library/internal/service/api"
+	"lyrics-library/internal/domain/models"
+	resp "lyrics-library/internal/lib/api/response"
+	"lyrics-library/internal/lib/logger/sl"
+	"lyrics-library/internal/service/api"
 )
 
 type Request struct {
@@ -29,7 +29,12 @@ type LyricsTranslator interface {
 }
 
 type TrackSaver interface {
-	SaveTrack(ctx context.Context, info *models.Track) error
+	SaveTrack(ctx context.Context, track *models.Track) error
+}
+
+type TrackCache interface {
+	GetTrack(ctx context.Context, artist, title string) (*models.Track, error)
+	SaveTrack(ctx context.Context, track *models.Track) error
 }
 
 func New(ctx context.Context,
@@ -37,6 +42,7 @@ func New(ctx context.Context,
 	lyricsFetcher LyricsFetcher,
 	lyricsTranslator LyricsTranslator,
 	trackSaver TrackSaver,
+	trackCache TrackCache,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.song.save.New"
@@ -66,6 +72,16 @@ func New(ctx context.Context,
 			w.WriteHeader(http.StatusBadRequest)
 
 			render.JSON(w, r, resp.Error("invalid request"))
+			return
+		}
+
+		cached, err := trackCache.GetTrack(ctx, req.Artist, req.Title)
+		if err == nil {
+			log.Info("returnig cached track")
+
+			w.WriteHeader(http.StatusOK)
+
+			render.JSON(w, r, cached)
 			return
 		}
 
@@ -124,6 +140,12 @@ func New(ctx context.Context,
 			render.JSON(w, r, resp.Error("internal error"))
 			return
 		}
+
+		go func() {
+			if err := trackCache.SaveTrack(ctx, track); err != nil {
+				log.Error("failed to cache track", sl.Err(err))
+			}
+		}()
 
 		log.Info("lyrics saved successfully")
 

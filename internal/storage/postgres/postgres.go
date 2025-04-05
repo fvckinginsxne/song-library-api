@@ -8,8 +8,8 @@ import (
 
 	"github.com/lib/pq"
 
-	"song-library/internal/domain/models"
-	"song-library/internal/storage"
+	"lyrics-library/internal/domain/models"
+	"lyrics-library/internal/storage"
 )
 
 type Storage struct {
@@ -21,6 +21,10 @@ func New(dbURL string) (*Storage, error) {
 
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -163,8 +167,13 @@ func (s *Storage) DeleteTrack(ctx context.Context, uuid string) error {
 	return tx.Commit()
 }
 
+func (s *Storage) Ping(ctx context.Context) error {
+	return s.db.PingContext(ctx)
+}
+
 func (s *Storage) Close(ctx context.Context) error {
 	done := make(chan struct{})
+	
 	var closeErr error
 	go func() {
 		closeErr = s.db.Close()

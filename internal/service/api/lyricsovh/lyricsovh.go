@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"song-library/internal/service/api"
+	"lyrics-library/internal/service/api"
 )
 
 const (

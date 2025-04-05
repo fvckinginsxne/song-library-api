@@ -14,6 +14,7 @@ type Config struct {
 	DB                  DB                  `yaml:"db"`
 	DeepSeekAPI         DeepSeekAPI         `yaml:"deepseek_api"`
 	YandexTranslatorAPI YandexTranslatorAPI `yaml:"yandex_translator_api"`
+	Redis               Redis               `yaml:"redis"`
 }
 
 type HTTPServer struct {
@@ -23,11 +24,17 @@ type HTTPServer struct {
 }
 
 type DB struct {
-	Host     string `yaml:"host" env-required:"true"`
-	Port     string `yaml:"port" env-required:"true"`
+	Host     string `yaml:"host" env-default:"localhost"`
+	Port     string `yaml:"port" env-default:"5432"`
 	Username string `yaml:"username" env-required:"true"`
 	Password string `yaml:"password" env-required:"true"`
 	Name     string `yaml:"name" env-required:"true"`
+}
+
+type Redis struct {
+	Host     string `yaml:"host" env-default:"localhost"`
+	Port     string `yaml:"port" env-default:"6379"`
+	Password string `yaml:"password" env-required:"true"`
 }
 
 type DeepSeekAPI struct {

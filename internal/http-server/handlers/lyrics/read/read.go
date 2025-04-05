@@ -1,4 +1,4 @@
-package info
+package read
 
 import (
 	"context"
@@ -8,10 +8,10 @@ import (
 
 	"github.com/go-chi/render"
 
-	"song-library/internal/domain/models"
-	resp "song-library/internal/lib/api/response"
-	"song-library/internal/lib/logger/sl"
-	"song-library/internal/storage"
+	"lyrics-library/internal/domain/models"
+	resp "lyrics-library/internal/lib/api/response"
+	"lyrics-library/internal/lib/logger/sl"
+	"lyrics-library/internal/storage"
 )
 
 type TrackProvider interface {
@@ -22,17 +22,29 @@ type ArtistTracksProvider interface {
 	TracksByArtist(ctx context.Context, artist string) ([]*models.Track, error)
 }
 
+type TrackCache interface {
+	SaveTrack(ctx context.Context, track *models.Track) error
+	GetTrack(ctx context.Context, artist, title string) (*models.Track, error)
+}
+
+type ArtistTracksCache interface {
+	SaveArtistTracks(ctx context.Context, artist string, tracks []*models.Track) error
+	GetArtistTracks(ctx context.Context, artist string) ([]*models.Track, error)
+}
+
 func New(ctx context.Context,
 	log *slog.Logger,
 	trackProvider TrackProvider,
 	artistTracksProvider ArtistTracksProvider,
+	trackCache TrackCache,
+	artistTracksCache ArtistTracksCache,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.song.info.New"
+		const op = "handlers.song.read.New"
 
 		log = log.With(slog.String("op", op))
 
-		log.Info("fetching track info")
+		log.Info("getting lyrics")
 
 		query := r.URL.Query()
 
@@ -49,6 +61,16 @@ func New(ctx context.Context,
 		}
 
 		if title == "" {
+			cachedTracks, err := artistTracksCache.GetArtistTracks(ctx, artist)
+			if err == nil {
+				log.Info("getting tracks from cache")
+
+				w.WriteHeader(http.StatusOK)
+
+				render.JSON(w, r, cachedTracks)
+				return
+			}
+
 			tracks, err := artistTracksProvider.TracksByArtist(ctx, artist)
 			if err != nil {
 				if errors.Is(err, storage.ErrArtistTracksNotFound) {
@@ -64,15 +86,31 @@ func New(ctx context.Context,
 
 				w.WriteHeader(http.StatusInternalServerError)
 
-				render.JSON(w, r, resp.Error("internal server error"))
+				render.JSON(w, r, resp.Error("internal error"))
 				return
 			}
+
+			go func() {
+				if err := artistTracksCache.SaveArtistTracks(ctx, artist, tracks); err != nil {
+					log.Error("failed to cache artist tracks", sl.Err(err))
+				}
+			}()
 
 			log.Info("artist's tracks got successfully", slog.Any("tracks", tracks))
 
 			w.WriteHeader(http.StatusOK)
 
 			render.JSON(w, r, tracks)
+			return
+		}
+
+		cachedTrack, err := trackCache.GetTrack(ctx, artist, title)
+		if err == nil {
+			log.Info("getting track from cache")
+
+			w.WriteHeader(http.StatusOK)
+
+			render.JSON(w, r, cachedTrack)
 			return
 		}
 
@@ -91,11 +129,17 @@ func New(ctx context.Context,
 
 			w.WriteHeader(http.StatusInternalServerError)
 
-			render.JSON(w, r, resp.Error("internal server error"))
+			render.JSON(w, r, resp.Error("internal error"))
 			return
 		}
 
-		log.Info("track info got successfully", slog.Any("trackInfo", track))
+		go func() {
+			if err := trackCache.SaveTrack(ctx, track); err != nil {
+				log.Error("failed to cache track", sl.Err(err))
+			}
+		}()
+
+		log.Info("lyrics got successfully", slog.Any("track", track))
 
 		w.WriteHeader(http.StatusOK)
 
