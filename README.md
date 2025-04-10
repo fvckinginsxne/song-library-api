@@ -12,8 +12,8 @@ RESTful microservice in Go for receiving song lyrics with Russian translation.
 - **Caching**: Redis
 - **Migrations**: golang-migrate
 - **External APIs**:
-- [LyricsOVH](https://lyricsovh.docs.apiary.io/#reference) - getting lyrics
-- [Yandex.Translate](https://yandex.cloud/ru/docs/translate/quickstart) - translation into Russian
+  - [LyricsOVH](https://lyricsovh.docs.apiary.io/#reference) - getting lyrics
+  - [Yandex.Translate](https://yandex.cloud/ru/docs/translate/quickstart) - translation into Russian
 - **Containerization**: Docker
   
 ## TODO  
