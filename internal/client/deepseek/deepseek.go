@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	"lyrics-library/internal/service/api"
+	apiClient"lyrics-library/internal/client"
 )
 
 type ChatRequest struct {
@@ -63,7 +63,7 @@ func (c *Client) TranslateLyrics(ctx context.Context, lyrics []string) ([]string
 
 	log.Info("translating lyrics")
 
-	ctx, cancel := context.WithTimeout(ctx, api.RequestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, apiClient.RequestTimeout)
 	defer cancel()
 
 	req, err := c.buildAPIRequest(ctx, lyrics)
@@ -79,10 +79,10 @@ func (c *Client) TranslateLyrics(ctx context.Context, lyrics []string) ([]string
 	log.Debug("Deepseek response", slog.Any("response", res))
 
 	if len(res.Choices) == 0 {
-		return nil, api.ErrFailedTranslateLyrics
+		return nil, apiClient.ErrFailedTranslateLyrics
 	}
 
-	formatted := api.FormatLyrics(res.Choices[0].Message.Content)
+	formatted := apiClient.FormatLyrics(res.Choices[0].Message.Content)
 
 	log.Info("lyrics translated successfully")
 

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"lyrics-library/internal/service/api"
+	apiClient "lyrics-library/internal/client"
 )
 
 const (
@@ -42,7 +42,7 @@ func (c *Client) Lyrics(ctx context.Context, artist, title string) ([]string, er
 
 	log.Info("Fetching lyrics")
 
-	ctx, cancel := context.WithTimeout(ctx, api.RequestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, apiClient.RequestTimeout)
 	defer cancel()
 
 	apiURL, err := url.JoinPath(apiBaseURL, artist, title)
@@ -64,7 +64,7 @@ func (c *Client) Lyrics(ctx context.Context, artist, title string) ([]string, er
 
 	log.Debug("Lyrics response", slog.Any("response", result))
 
-	formatted := api.FormatLyrics(result.Lyrics)
+	formatted := apiClient.FormatLyrics(result.Lyrics)
 
 	log.Info("lyrics fetched successfully")
 
@@ -84,11 +84,11 @@ func (c *Client) doAPIRequest(req *http.Request) (*LyricsResponse, error) {
 	}
 
 	if result.Lyrics == "" {
-		return nil, api.ErrTrackNotFound
+		return nil, apiClient.ErrLyricsNotFound
 	}
 
 	if result.Error != "" {
-		return nil, fmt.Errorf(result.Error)
+		return nil, fmt.Errorf("%s", result.Error)
 	}
 
 	return &result, nil

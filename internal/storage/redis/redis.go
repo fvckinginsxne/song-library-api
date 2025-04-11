@@ -52,7 +52,7 @@ func (s *Storage) SaveTrack(ctx context.Context, track *models.Track) error {
 	return nil
 }
 
-func (s *Storage) GetTrack(ctx context.Context, artist, title string) (*models.Track, error) {
+func (s *Storage) Track(ctx context.Context, artist, title string) (*models.Track, error) {
 	const op = "storage.redis.GetTrack"
 
 	key := generateTrackKey(artist, title)
@@ -60,7 +60,7 @@ func (s *Storage) GetTrack(ctx context.Context, artist, title string) (*models.T
 	data, err := s.db.Get(ctx, key).Bytes()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return nil, fmt.Errorf("%s: %w", op, storage.ErrTrackNotCahed)
+			return nil, fmt.Errorf("%s: %w", op, storage.ErrTrackNotCached)
 		}
 
 		return nil, fmt.Errorf("%s: %w", op, err)
@@ -72,18 +72,6 @@ func (s *Storage) GetTrack(ctx context.Context, artist, title string) (*models.T
 	}
 
 	return &track, err
-}
-
-func (s *Storage) DeleteTrack(ctx context.Context, artist, title string) error {
-	const op = "storage.redis.DeleteTrack"
-
-	key := generateTrackKey(artist, title)
-
-	if err := s.db.Del(ctx, key).Err(); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
-	return nil
 }
 
 func (s *Storage) SaveArtistTracks(ctx context.Context, artist string, tracks []*models.Track) error {
@@ -103,15 +91,15 @@ func (s *Storage) SaveArtistTracks(ctx context.Context, artist string, tracks []
 	return nil
 }
 
-func (s *Storage) GetArtistTracks(ctx context.Context, artist string) ([]*models.Track, error) {
+func (s *Storage) ArtistTracks(ctx context.Context, artist string) ([]*models.Track, error) {
 	const op = "storage.redis.GetArtistTracks"
 
 	key := generateArtistTracksKey(artist)
 
 	data, err := s.db.Get(ctx, key).Bytes()
 	if err != nil {
-		if errors.Is(err, storage.ErrArtistTracksNotCahed) {
-			return nil, fmt.Errorf("%s: %w", op, storage.ErrArtistTracksNotCahed)
+		if errors.Is(err, storage.ErrArtistTracksNotCached) {
+			return nil, fmt.Errorf("%s: %w", op, storage.ErrArtistTracksNotCached)
 		}
 
 		return nil, fmt.Errorf("%s: %w", op, err)

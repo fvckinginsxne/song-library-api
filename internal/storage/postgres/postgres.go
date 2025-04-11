@@ -173,7 +173,7 @@ func (s *Storage) Ping(ctx context.Context) error {
 
 func (s *Storage) Close(ctx context.Context) error {
 	done := make(chan struct{})
-	
+
 	var closeErr error
 	go func() {
 		closeErr = s.db.Close()

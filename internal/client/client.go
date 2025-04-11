@@ -1,4 +1,4 @@
-package api
+package client
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ErrTrackNotFound         = errors.New("track not found")
+	ErrLyricsNotFound        = errors.New("lyrics not found")
 	ErrFailedTranslateLyrics = errors.New("failed translate lyrics")
 )
 

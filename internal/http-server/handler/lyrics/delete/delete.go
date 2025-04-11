@@ -10,12 +10,11 @@ import (
 	"github.com/go-chi/render"
 
 	resp "lyrics-library/internal/lib/api/response"
-	"lyrics-library/internal/lib/logger/sl"
-	"lyrics-library/internal/storage"
+	"lyrics-library/internal/service/track"
 )
 
 type TrackDeleter interface {
-	DeleteTrack(ctx context.Context, uuid string) error
+	Delete(ctx context.Context, uuid string) error
 }
 
 func New(ctx context.Context,
@@ -40,25 +39,14 @@ func New(ctx context.Context,
 			return
 		}
 
-		if err := trackDeleter.DeleteTrack(r.Context(), uuid); err != nil {
-			if errors.Is(err, storage.ErrInvalidUUID) {
-				log.Error("invalid uuid")
-
+		if err := trackDeleter.Delete(ctx, uuid); err != nil {
+			if errors.Is(err, track.ErrInvalidUUID) {
 				w.WriteHeader(http.StatusBadRequest)
 
-				render.JSON(w, r, resp.Error("invalid request"))
+				render.JSON(w, r, resp.Error("invalid uuid"))
 				return
 			}
-
-			log.Error("failed to delete track", sl.Err(err))
-
-			w.WriteHeader(http.StatusInternalServerError)
-
-			render.JSON(w, r, resp.Error("internal server error"))
-			return
 		}
-
-		log.Info("track deleted successfully")
 
 		w.WriteHeader(http.StatusOK)
 	}

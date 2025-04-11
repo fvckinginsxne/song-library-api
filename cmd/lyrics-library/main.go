@@ -13,15 +13,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"lyrics-library/internal/client/lyricsovh"
+	"lyrics-library/internal/client/yandex"
 	"lyrics-library/internal/config"
-	del "lyrics-library/internal/http-server/handlers/lyrics/delete"
-	"lyrics-library/internal/http-server/handlers/lyrics/read"
-	"lyrics-library/internal/http-server/handlers/lyrics/save"
-	"lyrics-library/internal/http-server/middleware/health-checker"
+	del "lyrics-library/internal/http-server/handler/lyrics/delete"
+	"lyrics-library/internal/http-server/handler/lyrics/get"
+	"lyrics-library/internal/http-server/handler/lyrics/save"
+	healthchecker "lyrics-library/internal/http-server/middleware/health-checker"
 	"lyrics-library/internal/lib/logger/sl"
 	"lyrics-library/internal/lib/logger/slogpretty"
-	"lyrics-library/internal/service/api/lyricsovh"
-	"lyrics-library/internal/service/api/yandex"
+	"lyrics-library/internal/service/track"
 	"lyrics-library/internal/storage/postgres"
 	"lyrics-library/internal/storage/redis"
 )
@@ -30,7 +31,7 @@ const (
 	envLocal = "local"
 	envProd  = "prod"
 
-	shutdownTimeout = 30 * time.Second
+	shutdownTimeout = 15 * time.Second
 )
 
 func main() {
@@ -38,14 +39,14 @@ func main() {
 
 	log := setupLogger(cfg.Env)
 
-	ctx, cancel := signal.NotifyContext(context.Background(), 
-		os.Interrupt, 
+	ctx, cancel := signal.NotifyContext(context.Background(),
+		os.Interrupt,
 		syscall.SIGTERM,
 		syscall.SIGINT,
 	)
 	defer cancel()
 
-	dbURL := storageURL(cfg)
+	dbURL := connURL(cfg)
 
 	log.Debug("Connecting to database", slog.String("url", dbURL))
 
@@ -66,6 +67,12 @@ func main() {
 	lyricsClient := lyricsovh.New(log)
 	translateClient := yandex.New(log, cfg.YandexTranslatorAPI.Key)
 
+	trackService := track.New(log, 
+		lyricsClient, 
+		translateClient, 
+		storage, redis,
+	)
+
 	router := chi.NewRouter()
 
 	router.Use(middleware.Recoverer)
@@ -73,15 +80,9 @@ func main() {
 	router.Use(healthchecker.New(log, storage))
 
 	router.Route("/lyrics", func(r chi.Router) {
-		r.Post("/", save.New(
-			ctx, log, 
-			lyricsClient, 
-			translateClient, 
-			storage, 
-			redis),
-		)
-		r.Get("/", read.New(ctx, log, storage, storage, redis, redis))
-		r.Delete("/{uuid}", del.New(ctx, log, storage))
+		r.Post("/", save.New(ctx, log, trackService))
+		r.Get("/", get.New(ctx, log, trackService, trackService))
+		r.Delete("/{uuid}", del.New(ctx, log, trackService))
 	})
 
 	srv := &http.Server{
@@ -96,13 +97,13 @@ func main() {
 	go func() {
 		log.Info("starting server", slog.String("address", cfg.HTTPServer.Address))
 
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed{
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErr <- err
 		}
 	}()
 
 	select {
-	case <- ctx.Done():
+	case <-ctx.Done():
 		log.Info("shutdown signal recieved")
 	case err := <-serverErr:
 		log.Error("server error", sl.Err(err))
@@ -154,7 +155,7 @@ func setupPrettyLogger() *slog.Logger {
 	return slog.New(handler)
 }
 
-func storageURL(cfg *config.Config) string {
+func connURL(cfg *config.Config) string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		cfg.DB.Username, cfg.DB.Password, cfg.DB.Host, cfg.DB.Port, cfg.DB.Name)
 }
