@@ -50,7 +50,8 @@ type TrackService struct {
 	trackCache       TrackCache
 }
 
-func New(log *slog.Logger,
+func New(
+	log *slog.Logger,
 	lyricsProvider LyricsProvider,
 	lyricsTranslator LyricsTranslator,
 	trackStorage TrackStorage,
@@ -65,7 +66,8 @@ func New(log *slog.Logger,
 	}
 }
 
-func (s *TrackService) Save(ctx context.Context,
+func (s *TrackService) Save(
+	ctx context.Context,
 	artist, title string,
 ) (*models.Track, error) {
 	const op = "service.track.Save"
@@ -134,7 +136,10 @@ func (s *TrackService) Save(ctx context.Context,
 	return track, nil
 }
 
-func (s *TrackService) Track(ctx context.Context, artist, title string) (*models.Track, error) {
+func (s *TrackService) Track(
+	ctx context.Context,
+	artist, title string,
+) (*models.Track, error) {
 	const op = "service.track.Track"
 
 	log := s.log.With(slog.String("op", op))

@@ -39,7 +39,8 @@ func main() {
 
 	log := setupLogger(cfg.Env)
 
-	ctx, cancel := signal.NotifyContext(context.Background(),
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
 		os.Interrupt,
 		syscall.SIGTERM,
 		syscall.SIGINT,
@@ -59,7 +60,7 @@ func main() {
 
 	log.Debug("Connecting to redis", slog.String("host", redisHost))
 
-	redis, err := redis.New(redisHost, cfg.Redis.Password)
+	redisCache, err := redis.New(redisHost, cfg.Redis.Password)
 	if err != nil {
 		panic(err)
 	}
@@ -67,10 +68,12 @@ func main() {
 	lyricsClient := lyricsovh.New(log)
 	translateClient := yandex.New(log, cfg.YandexTranslatorAPI.Key)
 
-	trackService := track.New(log, 
-		lyricsClient, 
-		translateClient, 
-		storage, redis,
+	trackService := track.New(
+		log,
+		lyricsClient,
+		translateClient,
+		storage,
+		redisCache,
 	)
 
 	router := chi.NewRouter()
@@ -121,7 +124,7 @@ func main() {
 		log.Error("failed to close storage", sl.Err(err))
 	}
 
-	if err := redis.Close(shutdownCtx); err != nil {
+	if err := redisCache.Close(shutdownCtx); err != nil {
 		log.Error("failed to close redis", sl.Err(err))
 	}
 
@@ -157,7 +160,7 @@ func setupPrettyLogger() *slog.Logger {
 
 func connURL(cfg *config.Config) string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.DB.Username, cfg.DB.Password, cfg.DB.Host, cfg.DB.Port, cfg.DB.Name)
+		cfg.DB.User, cfg.DB.Password, cfg.DB.Host, cfg.DB.Port, cfg.DB.Name)
 }
 
 func redisHost(cfg *config.Config) string {

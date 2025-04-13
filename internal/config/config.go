@@ -9,40 +9,35 @@ import (
 )
 
 type Config struct {
-	Env                 string              `yaml:"env" env-default:"local"`
-	HTTPServer          HTTPServer          `yaml:"http_server"`
-	DB                  DB                  `yaml:"db"`
-	DeepSeekAPI         DeepSeekAPI         `yaml:"deepseek_api"`
-	YandexTranslatorAPI YandexTranslatorAPI `yaml:"yandex_translator_api"`
-	Redis               Redis               `yaml:"redis"`
+	Env                 string              `env:"APP_ENV" env-default:"local"`
+	HTTPServer          HTTPServerConfig    `env-prefix:"SERVER_"`
+	DB                  DBConfig            `env-prefix:"DB_"`
+	Redis               RedisConfig         `env-prefix:"REDIS_"`
+	YandexTranslatorAPI TranslatorAPIConfig `env-prefix:"TRANSLATOR_API_"`
 }
 
-type HTTPServer struct {
-	Address     string        `yaml:"address" env-required:"true"`
-	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
-	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
+type HTTPServerConfig struct {
+	Address     string        `env:"ADDRESS" env-required:"true"`
+	Timeout     time.Duration `env:"TIMEOUT" env-default:"4s"`
+	IdleTimeout time.Duration `env:"IDLE_TIMEOUT" env-default:"60s"`
 }
 
-type DB struct {
-	Host     string `yaml:"host" env-default:"localhost"`
-	Port     string `yaml:"port" env-default:"5432"`
-	Username string `yaml:"username" env-required:"true"`
-	Password string `yaml:"password" env-required:"true"`
-	Name     string `yaml:"name" env-required:"true"`
+type DBConfig struct {
+	Host     string `env:"HOST" env-default:"localhost"`
+	Port     string `env:"PORT" env-default:"5432"`
+	User     string `env:"USER" env-required:"true"`
+	Password string `env:"PASSWORD" env-required:"true"`
+	Name     string `env:"NAME" env-required:"true"`
 }
 
-type Redis struct {
-	Host     string `yaml:"host" env-default:"localhost"`
-	Port     string `yaml:"port" env-default:"6379"`
-	Password string `yaml:"password" env-required:"true"`
+type RedisConfig struct {
+	Host     string `env:"HOST" env-default:"localhost"`
+	Port     string `env:"PORT" env-default:"6379"`
+	Password string `env:"PASSWORD" env-required:"true"`
 }
 
-type DeepSeekAPI struct {
-	Key string `yaml:"key" env-required:"true"`
-}
-
-type YandexTranslatorAPI struct {
-	Key string `yaml:"key" env-required:"true"`
+type TranslatorAPIConfig struct {
+	Key string `env:"KEY" env-required:"true"`
 }
 
 // MustLoad Load config file and panic if errors occurs

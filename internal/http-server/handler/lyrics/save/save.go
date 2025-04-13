@@ -24,7 +24,8 @@ type TrackSaver interface {
 	Save(ctx context.Context, artist, title string) (*models.Track, error)
 }
 
-func New(ctx context.Context,
+func New(
+	ctx context.Context,
 	log *slog.Logger,
 	trackSaver TrackSaver,
 ) http.HandlerFunc {

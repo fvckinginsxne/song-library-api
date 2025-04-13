@@ -4,8 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
-	
+
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -14,8 +13,6 @@ import (
 )
 
 func main() {
-	cfg := config.MustLoad()
-
 	var (
 		migrationsPath string
 		action         string
@@ -26,16 +23,16 @@ func main() {
 	flag.StringVar(&action, "action", "", "Action to perform: up (apply migrations) or down (rollback migrations)")
 	flag.IntVar(&forceVersion, "force-version", 0, "Force version to rollback")
 
-	if err := flag.CommandLine.Parse(os.Args[2:]); err != nil {
-		panic(err)
-	}
+	flag.Parse()
+
+	cfg := config.MustLoad()
 
 	if migrationsPath == "" {
 		panic("migrations path is required")
 	}
 
 	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.DB.Username,
+		cfg.DB.User,
 		cfg.DB.Password,
 		cfg.DB.Host,
 		cfg.DB.Port,

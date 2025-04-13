@@ -22,10 +22,6 @@
 go.work
 go.work.sum
 
-# env file
-.env
-
-#config files
+# Config files
 local.yaml
-docker-compose.yaml
-redis.conf
+.env
