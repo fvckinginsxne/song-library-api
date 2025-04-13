@@ -33,11 +33,11 @@ docker-compose --env-file .env up -d
 ```
 ### 4. Apply database migrations
 ```bash
-task migrate-up
+CONFIG_PATH=.env go run ./cmd/migrator/main.go --migrations-path=./migrations --action=up --force-version=0
 ```
 ### 5. Run application
 ```bash
-task run
+go run ./cmd/lyrics-library --config=.env
 ```
 
 ## TODO 
